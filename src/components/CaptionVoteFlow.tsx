@@ -44,6 +44,7 @@ const TOUCH_NAVIGATION_THRESHOLD_PX = 52;
 const WHEEL_NAVIGATION_THRESHOLD_PX = 32;
 const WHEEL_GESTURE_IDLE_MS = 350;
 const GESTURE_NAVIGATION_COOLDOWN_MS = 350;
+const MINIMUM_CAPTION_VIEW_MS = 5000;
 const MILESTONE_CHEER = (milestoneCount: number) =>
   `${milestoneCount} down! You're on fire! 🦁🎉`;
 const REGULAR_CHEERS = [
@@ -348,8 +349,13 @@ export function CaptionVoteFlow({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isShortViewport, setIsShortViewport] = useState(false);
   const [isLoadingMoreCaptions, setIsLoadingMoreCaptions] = useState(false);
+  const [batchLoadFailed, setBatchLoadFailed] = useState(false);
   const [nextCaptionOffset, setNextCaptionOffset] = useState(initialNextOffset);
   const [pendingCount, setPendingCount] = useState(0);
+  const [ratingSaveFailed, setRatingSaveFailed] = useState(false);
+  const [pendingAdvance, setPendingAdvance] = useState<VoteInputMethod | null>(null);
+  const [viewSecondsRemaining, setViewSecondsRemaining] = useState(5);
+  const [isImageReady, setIsImageReady] = useState(false);
   const [participation, setParticipation] = useState(initialParticipation);
   const [participationPending, setParticipationPending] = useState(false);
   const participationPendingRef = useRef(false);
@@ -381,6 +387,14 @@ export function CaptionVoteFlow({
     isCaptionTimerActive() ? getNowMs() : null
   );
   const currentIndexRef = useRef(0);
+  const viewGateRef = useRef<{
+    captionId: string | null;
+    ready: boolean;
+    elapsedMs: number;
+    startedAtMs: number | null;
+  }>({ captionId: null, ready: false, elapsedMs: 0, startedAtMs: null });
+  const ratingSavePendingRef = useRef(false);
+  const ratingSaveFailedRef = useRef(false);
   const touchGestureRef = useRef<TouchGestureState>({
     active: false,
     startX: 0,
@@ -502,6 +516,51 @@ export function CaptionVoteFlow({
     .slice(currentIndex + 1, currentIndex + 3)
     .map((caption) => caption.imageSrc)
     .filter((url): url is string => Boolean(url));
+
+  const resetViewGate = useCallback((captionId: string | null) => {
+    viewGateRef.current = { captionId, ready: false, elapsedMs: 0, startedAtMs: null };
+    setViewSecondsRemaining(5);
+    setIsImageReady(false);
+    setPendingAdvance(null);
+  }, []);
+
+  const getViewElapsedMs = useCallback(() => {
+    const gate = viewGateRef.current;
+    return gate.elapsedMs + (gate.startedAtMs === null ? 0 : Math.max(0, getNowMs() - gate.startedAtMs));
+  }, []);
+
+  const syncViewGate = useCallback(() => {
+    const gate = viewGateRef.current;
+    const active = gate.ready && isCaptionTimerActive();
+    if (!active && gate.startedAtMs !== null) {
+      gate.elapsedMs += Math.max(0, getNowMs() - gate.startedAtMs);
+      gate.startedAtMs = null;
+    } else if (active && gate.startedAtMs === null) {
+      gate.startedAtMs = getNowMs();
+    }
+    setViewSecondsRemaining(Math.max(0, Math.ceil((MINIMUM_CAPTION_VIEW_MS - getViewElapsedMs()) / 1000)));
+  }, [getViewElapsedMs]);
+
+  const handleImageReady = useCallback((captionId: string) => {
+    const gate = viewGateRef.current;
+    if (gate.captionId !== captionId || gate.ready) return;
+    gate.ready = true;
+    setIsImageReady(true);
+    syncViewGate();
+  }, [syncViewGate]);
+
+  useEffect(() => {
+    const interval = window.setInterval(syncViewGate, 100);
+    document.addEventListener("visibilitychange", syncViewGate);
+    window.addEventListener("focus", syncViewGate);
+    window.addEventListener("blur", syncViewGate);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", syncViewGate);
+      window.removeEventListener("focus", syncViewGate);
+      window.removeEventListener("blur", syncViewGate);
+    };
+  }, [syncViewGate]);
 
   const getVoteSessionId = useCallback(() => {
     if (voteSessionIdRef.current) {
@@ -688,8 +747,6 @@ export function CaptionVoteFlow({
       return;
     }
 
-    const appendedCaptions: CaptionForVote[] = [];
-
     setQueue((previousQueue) => {
       const seenVoteKeys = new Set(
         previousQueue
@@ -707,24 +764,23 @@ export function CaptionVoteFlow({
 
         seenVoteKeys.add(voteKey);
         nextQueue.push(caption);
-        appendedCaptions.push(caption);
       });
 
       return nextQueue;
     });
 
-    if (appendedCaptions.length) {
+    if (incomingCaptions.length) {
       setVoteStatuses((previousVoteStatuses) => {
         const nextVoteStatuses = { ...previousVoteStatuses };
 
-        appendedCaptions.forEach((caption) => {
+        incomingCaptions.forEach((caption) => {
           if (!caption.rating && !caption.isLiked) {
             return;
           }
 
           const voteKey = getCaptionVoteKey(caption);
 
-          if (voteKey) {
+          if (voteKey && !nextVoteStatuses[voteKey]) {
             nextVoteStatuses[voteKey] = "saved";
           }
         });
@@ -735,10 +791,10 @@ export function CaptionVoteFlow({
       setRatingsByKey((previousRatings) => {
         const nextRatings = { ...previousRatings };
 
-        appendedCaptions.forEach((caption) => {
+        incomingCaptions.forEach((caption) => {
           const voteKey = getCaptionVoteKey(caption);
           const rating = caption.rating ?? (caption.isLiked ? "funny" : null);
-          if (voteKey && rating) {
+          if (voteKey && rating && !nextRatings[voteKey]) {
             nextRatings[voteKey] = rating;
           }
         });
@@ -758,6 +814,8 @@ export function CaptionVoteFlow({
       }
 
       requestedCaptionOffsetsRef.current.add(offset);
+      if (batchLoadFailed) setError(null);
+      setBatchLoadFailed(false);
       setIsLoadingMoreCaptions(true);
 
       try {
@@ -771,6 +829,7 @@ export function CaptionVoteFlow({
 
         if (!result.success) {
           requestedCaptionOffsetsRef.current.delete(offset);
+          setBatchLoadFailed(true);
           setError(
             result.error ?? "We couldn't load more captions. Please try again."
           );
@@ -783,12 +842,13 @@ export function CaptionVoteFlow({
       } catch (err) {
         console.error("[CaptionVoteFlow] load more captions failed", err);
         requestedCaptionOffsetsRef.current.delete(offset);
+        setBatchLoadFailed(true);
         setError("We couldn't load more captions. Please try again.");
       } finally {
         setIsLoadingMoreCaptions(false);
       }
     },
-    [appendCaptionBatch, captionOrder, includeExpired, includePrivateStudies, isLoadingMoreCaptions, studyId]
+    [appendCaptionBatch, batchLoadFailed, captionOrder, includeExpired, includePrivateStudies, isLoadingMoreCaptions, studyId]
   );
 
   const showMascotCheer = useCallback((milestoneCount: number | null) => {
@@ -853,6 +913,7 @@ export function CaptionVoteFlow({
 
       const previousCompletedCount = currentIndexRef.current + 1;
       const completedCount = clampedIndex + 1;
+      resetViewGate(queue[clampedIndex]?.id ?? null);
       currentIndexRef.current = clampedIndex;
       setCurrentIndex(clampedIndex);
       if (completedCount > previousCompletedCount) {
@@ -868,7 +929,7 @@ export function CaptionVoteFlow({
       }
       return true;
     },
-    [celebrateMilestone, queue.length]
+    [celebrateMilestone, queue, resetViewGate]
   );
 
   const saveForwardNavigationTelemetry = useCallback(
@@ -921,6 +982,7 @@ export function CaptionVoteFlow({
   const handleStartStudy = useCallback(async () => {
     if (participationPendingRef.current || !studyId) return;
     if (participation?.started_at) {
+      resetViewGate(queue[0]?.id ?? null);
       currentIndexRef.current = 0;
       setCurrentIndex(0);
       setIsCompletionPageVisible(false);
@@ -939,6 +1001,7 @@ export function CaptionVoteFlow({
         return;
       }
       setParticipation(result.participation);
+      resetViewGate(queue[0]?.id ?? null);
       setHasSubmittedCompletion(false);
       setCaptionFlipDirection("forward");
       setIsStartPageVisible(false);
@@ -949,7 +1012,7 @@ export function CaptionVoteFlow({
       participationPendingRef.current = false;
       setParticipationPending(false);
     }
-  }, [participation, studyId]);
+  }, [participation, queue, resetViewGate, studyId]);
 
   const handleEndStudy = useCallback(async () => {
     if (
@@ -982,7 +1045,7 @@ export function CaptionVoteFlow({
 
   const navigateToRelativeCaption = useCallback(
     (offset: -1 | 1, inputMethod: VoteInputMethod) => {
-      if (participationPendingRef.current) return false;
+      if (participationPendingRef.current || ratingSavePendingRef.current || ratingSaveFailedRef.current) return false;
       if (isStartPageVisible) {
         if (offset === 1 && current) {
           void handleStartStudy();
@@ -994,12 +1057,18 @@ export function CaptionVoteFlow({
 
       if (isShowingCompletionPage) {
         if (offset === -1 && current) {
+          resetViewGate(current.id);
           setCaptionFlipDirection("backward");
           setIsCompletionPageVisible(false);
           return true;
         }
 
         return true;
+      }
+
+      if (!viewGateRef.current.ready || getViewElapsedMs() < MINIMUM_CAPTION_VIEW_MS) {
+        syncViewGate();
+        return false;
       }
 
       const nextIndex = currentIndexRef.current + offset;
@@ -1043,6 +1112,7 @@ export function CaptionVoteFlow({
     },
     [
       current,
+      getViewElapsedMs,
       handleStartStudy,
       isStartPageVisible,
       isShowingCompletionPage,
@@ -1053,7 +1123,9 @@ export function CaptionVoteFlow({
       pauseNavigationTimer,
       pauseVoteTimer,
       queue.length,
+      resetViewGate,
       saveForwardNavigationTelemetry,
+      syncViewGate,
     ]
   );
 
@@ -1242,6 +1314,9 @@ export function CaptionVoteFlow({
     touchGestureRef.current.active = false;
   }, []);
 
+  const navigateRef = useRef(navigateToRelativeCaption);
+  navigateRef.current = navigateToRelativeCaption;
+
   const handleRatingSelect = useCallback((
     rating: StudyVoteValue,
     inputMethod: VoteInputMethod = "button"
@@ -1251,14 +1326,30 @@ export function CaptionVoteFlow({
       !current ||
       !currentVoteKey ||
       currentVoteStatus === "saving" ||
-      ratingsByKey[currentVoteKey] === rating
+      ratingSavePendingRef.current ||
+      !viewGateRef.current.ready ||
+      getViewElapsedMs() < MINIMUM_CAPTION_VIEW_MS
     ) {
+      return;
+    }
+
+    const advance = () => {
+      if (!navigateRef.current(1, inputMethod)) {
+        setPendingAdvance(inputMethod);
+      }
+    };
+    if (ratingsByKey[currentVoteKey] === rating) {
+      ratingSaveFailedRef.current = false;
+      setRatingSaveFailed(false);
+      setError(null);
+      advance();
       return;
     }
 
     const voteTarget = current;
     const previousRating = ratingsByKey[currentVoteKey];
     const eventDetails = createVoteEventDetails(inputMethod);
+    ratingSavePendingRef.current = true;
     setPendingCount((count) => count + 1);
     setError(null);
     setRatingsByKey((previousRatings) => ({
@@ -1279,6 +1370,8 @@ export function CaptionVoteFlow({
     })
       .then((result) => {
         if (!result?.success) {
+          ratingSaveFailedRef.current = true;
+          setRatingSaveFailed(true);
           setRatingsByKey((previousRatings) => {
             const nextRatings = { ...previousRatings };
             if (previousRating) {
@@ -1289,12 +1382,14 @@ export function CaptionVoteFlow({
             return nextRatings;
           });
           setVoteStatus(currentVoteKey, previousRating ? "saved" : null);
-          setError(result?.error ?? "We couldn't save your rating. Please try again.");
+          setError(`${result?.error ?? "We couldn't save your rating."} Please select a rating to retry.`);
           resumeVoteTimer();
           return;
         }
 
         setVoteStatus(currentVoteKey, "saved");
+        ratingSaveFailedRef.current = false;
+        setRatingSaveFailed(false);
         const completedCount = currentIndexRef.current + 1;
         if (completedCount % 10 !== 0) {
           showMascotCheer(null);
@@ -1318,9 +1413,13 @@ export function CaptionVoteFlow({
             },
           };
         });
+        ratingSavePendingRef.current = false;
+        advance();
       })
       .catch((err) => {
         console.error("[CaptionVoteFlow] save vote failed", err);
+        ratingSaveFailedRef.current = true;
+        setRatingSaveFailed(true);
         setRatingsByKey((previousRatings) => {
           const nextRatings = { ...previousRatings };
           if (previousRating) {
@@ -1331,10 +1430,11 @@ export function CaptionVoteFlow({
           return nextRatings;
         });
         setVoteStatus(currentVoteKey, previousRating ? "saved" : null);
-        setError("We couldn't save your rating. Please try again.");
+        setError("We couldn't save your rating. Please select a rating to retry.");
         resumeVoteTimer();
       })
       .finally(() => {
+        ratingSavePendingRef.current = false;
         setPendingCount((count) => Math.max(0, count - 1));
       });
   }, [
@@ -1342,12 +1442,20 @@ export function CaptionVoteFlow({
     current,
     currentVoteKey,
     currentVoteStatus,
+    getViewElapsedMs,
     pauseVoteTimer,
     ratingsByKey,
     resumeVoteTimer,
     setVoteStatus,
     showMascotCheer,
   ]);
+
+  useEffect(() => {
+    if (!pendingAdvance || isLoadingMoreCaptions || ratingSavePendingRef.current) return;
+    if (currentIndex + 1 >= queue.length && nextCaptionOffset !== null) return;
+    setPendingAdvance(null);
+    navigateToRelativeCaption(1, pendingAdvance);
+  }, [currentIndex, isLoadingMoreCaptions, navigateToRelativeCaption, nextCaptionOffset, pendingAdvance, queue.length]);
 
   const handleKeyboardNavigation = useCallback(
     (event: KeyboardEvent) => {
@@ -1446,6 +1554,7 @@ export function CaptionVoteFlow({
     if (
       nextCaptionOffset === null ||
       isLoadingMoreCaptions ||
+      batchLoadFailed ||
       queue.length === 0
     ) {
       return;
@@ -1460,6 +1569,7 @@ export function CaptionVoteFlow({
     void loadMoreCaptions(nextCaptionOffset);
   }, [
     currentIndex,
+    batchLoadFailed,
     isLoadingMoreCaptions,
     loadMoreCaptions,
     nextCaptionOffset,
@@ -1528,8 +1638,8 @@ export function CaptionVoteFlow({
   return (
     <div
       id="vote-flow-frame"
-      className={`relative flex h-full min-h-0 w-full flex-1 self-stretch flex-col items-center justify-start gap-4 text-center pt-2 sm:pt-3 ${
-        isShortViewport ? "pb-1" : ""
+      className={`relative flex h-full min-h-0 w-full flex-1 self-stretch flex-col items-center justify-start text-center pt-2 sm:pt-3 ${
+        isShortViewport ? "gap-1 overflow-y-auto overscroll-contain pb-1" : "gap-4"
       }`}
       style={{
         paddingBottom: `calc(${contentBottomPaddingPx}px + env(safe-area-inset-bottom, 0px))`,
@@ -1546,6 +1656,7 @@ export function CaptionVoteFlow({
           participation={participation}
           highlights={studyHighlights}
           onEdit={() => {
+            resetViewGate(queue[0]?.id ?? null);
             currentIndexRef.current = 0;
             setCurrentIndex(0);
             setIsCompletionPageVisible(false);
@@ -1577,15 +1688,17 @@ export function CaptionVoteFlow({
               mascotMessage={mascotMessage}
               isMilestoneMessage={isMilestoneMessage}
               completedCount={currentCaptionNumber}
+              imageReady={isImageReady}
+              secondsRemaining={viewSecondsRemaining}
+              ratingPending={currentVoteStatus === "saving"}
             />
           ) : null}
-          <CaptionPrompt content={current.content} />
-          <div className="flex min-h-[160px] w-full flex-1 items-stretch gap-1.5 sm:min-h-[220px] sm:gap-4">
+          <div className="flex min-h-[112px] w-full flex-1 items-stretch gap-1.5 sm:gap-4">
             <button
               type="button"
               onClick={() => navigateToRelativeCaption(-1, "button")}
               aria-label="Previous caption"
-              disabled={participationPending}
+              disabled={participationPending || ratingSaveFailed || currentVoteStatus === "saving" || !isImageReady || viewSecondsRemaining > 0}
               className="flex h-9 w-9 shrink-0 self-center items-center justify-center rounded-full border border-[var(--panel-border)] bg-[var(--vote-panel-surface)] text-lg text-[var(--foreground)] shadow-[0_3px_12px_rgba(87,75,64,0.06)] enabled:hover:-translate-x-0.5 enabled:hover:border-[var(--accent-strong)] disabled:cursor-not-allowed disabled:border-dashed sm:h-12 sm:w-auto sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm sm:font-semibold"
             >
               <span aria-hidden>←</span>
@@ -1600,6 +1713,7 @@ export function CaptionVoteFlow({
                 captionId={current.id}
                 imageSrc={current.imageSrc}
                 preloadImageUrls={preloadImageUrls}
+                onImageReady={handleImageReady}
               />
             </div>
           </div>
@@ -1607,8 +1721,8 @@ export function CaptionVoteFlow({
               type="button"
               onClick={() => navigateToRelativeCaption(1, "button")}
               aria-label={currentIndex >= totalCaptionCount - 1 ? "Finish study" : "Next caption"}
-              disabled={participationPending || isLoadingMoreCaptions}
-              className={`flex h-9 shrink-0 self-center items-center justify-center gap-1 rounded-full border px-2.5 text-xs font-semibold shadow-[0_3px_12px_rgba(87,75,64,0.06)] transition sm:h-12 sm:rounded-2xl sm:px-4 sm:text-sm ${
+              disabled={participationPending || ratingSaveFailed || currentVoteStatus === "saving" || isLoadingMoreCaptions || !isImageReady || viewSecondsRemaining > 0}
+              className={`flex h-9 shrink-0 self-center items-center justify-center gap-1 rounded-full border px-2.5 text-xs font-semibold shadow-[0_3px_12px_rgba(87,75,64,0.06)] transition disabled:cursor-not-allowed disabled:border-dashed sm:h-12 sm:rounded-2xl sm:px-4 sm:text-sm ${
                 currentIndex >= totalCaptionCount - 1 && nextCaptionOffset === null
                   ? "border-[var(--accent-strong)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-105"
                   : "border-[var(--panel-border)] bg-[var(--vote-panel-surface)] text-[var(--foreground)] hover:translate-x-0.5 hover:border-[var(--accent-strong)]"
@@ -1627,9 +1741,12 @@ export function CaptionVoteFlow({
               <span aria-hidden className="text-xl">{currentIndex >= totalCaptionCount - 1 && nextCaptionOffset === null ? "✓" : "→"}</span>
             </button>
           </div>
+          <CaptionPrompt content={current.content} />
           <RatingScale
             selectedValue={currentVoteKey ? ratingsByKey[currentVoteKey] : undefined}
             pending={currentVoteStatus === "saving"}
+            secondsRemaining={viewSecondsRemaining}
+            imageReady={isImageReady}
             onSelect={(value) => handleRatingSelect(value)}
           />
         </>
@@ -1643,7 +1760,7 @@ function CaptionPrompt({ content }: { content: string | null }) {
   return (
     <div
       id="caption-card-caption"
-      className="mt-1 mb-2 max-h-[18svh] w-full max-w-3xl shrink-0 overflow-y-auto overscroll-contain px-3 text-center sm:mt-2 sm:mb-4 sm:max-h-[20svh] sm:px-5"
+      className="max-h-[14svh] w-full max-w-3xl shrink-0 overflow-y-auto overscroll-contain px-3 text-center sm:max-h-[18svh] sm:px-5"
     >
       <p className="whitespace-pre-wrap break-words font-sans text-base font-medium leading-relaxed text-[var(--foreground)] sm:text-lg">
         {content?.trim() || "No caption text"}
@@ -1680,8 +1797,9 @@ function StudyStartPage({ onStart, pending, hasStarted, hasCompleted }: {
             Rate each caption from boring to hilarious.
           </p>
           <p className="text-base leading-8 text-[var(--foreground)]/92 sm:text-lg">
-            You&apos;ll see one caption at a time. Choose a rating, then use
-            Previous and Next to move through the study.
+            You&apos;ll see one caption at a time. View each image for at least
+            five seconds, then choose a rating to continue automatically.
+            Use Previous to revisit an image.
           </p>
           <p className="text-base leading-8 text-[var(--foreground)]/92 sm:text-lg">
             When you reach the final caption, finish the study to save your
@@ -1751,6 +1869,9 @@ function StudyProgressIndicator({
   mascotMessage,
   isMilestoneMessage,
   completedCount,
+  imageReady,
+  secondsRemaining,
+  ratingPending,
 }: {
   current: number;
   total: number;
@@ -1758,17 +1879,22 @@ function StudyProgressIndicator({
   mascotMessage: string;
   isMilestoneMessage: boolean;
   completedCount: number;
+  imageReady: boolean;
+  secondsRemaining: number;
+  ratingPending: boolean;
 }) {
   const progress = total > 0 ? Math.min(100, (current / total) * 100) : 0;
   const milestoneCount = Math.floor(total / 10);
 
   return (
     <div className="w-full max-w-3xl shrink-0 px-1" aria-label="Study progress">
-      <div className="mb-2 flex w-full items-center justify-center gap-2.5" aria-live="polite">
+      <div className="mb-2 flex w-full items-center justify-center gap-1.5 sm:gap-2.5">
+        <ViewCountdown imageReady={imageReady} secondsRemaining={secondsRemaining} pending={ratingPending} />
         <LionMascot />
         <p
           key={mascotMessage}
-          className={`mascot-speech-pop relative max-w-[calc(100%-4.5rem)] rounded-2xl border px-3 py-1.5 text-left text-[11px] leading-4 shadow-sm sm:max-w-[min(34rem,calc(100%-5rem))] sm:px-4 sm:py-2 sm:text-sm sm:leading-5 ${
+          aria-live="polite"
+          className={`mascot-speech-pop relative min-w-0 max-w-[34rem] rounded-2xl border px-3 py-1.5 text-left text-[11px] leading-4 shadow-sm sm:px-4 sm:py-2 sm:text-sm sm:leading-5 ${
             isMilestoneMessage
               ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-200/30 dark:bg-amber-200/10 dark:text-amber-100"
               : "border-[var(--panel-border)] bg-[var(--vote-panel-surface)] text-[var(--muted)]"
@@ -1832,6 +1958,34 @@ function StudyProgressIndicator({
       <p className="sr-only">
         {label}
       </p>
+    </div>
+  );
+}
+
+function ViewCountdown({ imageReady, secondsRemaining, pending }: {
+  imageReady: boolean;
+  secondsRemaining: number;
+  pending: boolean;
+}) {
+  const ready = imageReady && secondsRemaining === 0;
+  return (
+    <div
+      data-view-countdown
+      aria-label={!imageReady ? "Waiting for image" : !ready ? `${secondsRemaining} seconds remaining` : pending ? "Saving rating" : "Ready to rate"}
+      className="flex h-[60px] w-[60px] shrink-0 flex-col items-center justify-center rounded-full border-2 border-[var(--accent-strong)] bg-[var(--card-surface)] text-[var(--foreground)] sm:h-[70px] sm:w-[70px]"
+    >
+      {!imageReady ? (
+        <span className="text-center text-[10px] font-bold leading-tight">Loading</span>
+      ) : ready && pending ? (
+        <span className="text-center text-[10px] font-bold leading-tight">Saving</span>
+      ) : ready ? (
+        <span className="text-center text-[10px] font-bold leading-tight">Ready<br />to rate</span>
+      ) : (
+        <>
+          <span className="text-xl font-bold leading-none tabular-nums sm:text-2xl">{secondsRemaining}</span>
+          <span className="mt-1 text-[10px] font-semibold leading-none">seconds</span>
+        </>
+      )}
     </div>
   );
 }
@@ -1901,16 +2055,25 @@ function LionMascot() {
 function RatingScale({
   selectedValue,
   pending,
+  secondsRemaining,
+  imageReady,
   onSelect,
 }: {
   selectedValue: StudyVoteValue | undefined;
   pending: boolean;
+  secondsRemaining: number;
+  imageReady: boolean;
   onSelect: (value: StudyVoteValue) => void;
 }) {
   return (
     <div className="w-full max-w-3xl shrink-0">
       <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
         How funny is this?
+      </p>
+      <p role="status" className="mb-2 text-sm font-medium text-[var(--foreground)]">
+        {!imageReady ? "Waiting for the image to load…" : secondsRemaining > 0
+          ? `Please view this image for ${secondsRemaining} more ${secondsRemaining === 1 ? "second" : "seconds"}.`
+          : pending ? "Saving your rating…" : "Choose a rating to continue."}
       </p>
       <div
         role="group"
@@ -1925,7 +2088,7 @@ function RatingScale({
               key={option.score}
               type="button"
               onClick={() => onSelect(option.value)}
-              disabled={pending}
+              disabled={pending || !imageReady || secondsRemaining > 0}
               aria-pressed={selected}
               className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-2 text-[11px] font-semibold transition-all duration-200 disabled:cursor-wait sm:px-3 sm:text-sm sm:py-2.5 ${
                 selected

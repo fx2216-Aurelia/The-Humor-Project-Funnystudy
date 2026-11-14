@@ -14,14 +14,17 @@ export function SwipeVoteCard({
   captionId,
   imageSrc,
   preloadImageUrls,
+  onImageReady,
 }: {
   captionId: string;
   imageSrc: string | null;
   preloadImageUrls?: string[];
+  onImageReady?: (captionId: string) => void;
 }) {
   const preloadedImages = useRef<Set<string>>(new Set());
   const [loadedImageSrc, setLoadedImageSrc] = useState<string | null>(null);
   const [failedThumbnailSrc, setFailedThumbnailSrc] = useState<string | null>(null);
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
   const thumbSources = useMemo(
@@ -33,6 +36,7 @@ export function SwipeVoteCard({
   const displaySrcSet = activeThumbSources?.srcSet;
   const displaySizes = activeThumbSources?.sizes;
   const isContentVisible = !displaySrc || loadedImageSrc === displaySrc;
+  const imageFailed = Boolean(displaySrc && failedImageSrc === displaySrc);
 
   const handleImageError = useCallback(() => {
     if (activeThumbSources) {
@@ -40,8 +44,13 @@ export function SwipeVoteCard({
       return;
     }
 
+    setFailedImageSrc(displaySrc ?? "__error__");
     setLoadedImageSrc(displaySrc ?? "__error__");
   }, [activeThumbSources, displaySrc, imageSrc]);
+
+  useEffect(() => {
+    if (isContentVisible) onImageReady?.(captionId);
+  }, [captionId, isContentVisible, onImageReady]);
 
   useEffect(() => {
     let resetFrameId: number | null = null;
@@ -161,7 +170,7 @@ export function SwipeVoteCard({
         id="caption-card-stack"
         className="flex h-full min-h-[144px] w-full flex-col items-center overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--card-surface)] p-3 shadow-[0_8px_26px_-8px_rgba(104,91,76,0.08)] sm:p-5"
       >
-        {displaySrc ? (
+        {displaySrc && !imageFailed ? (
           <div
             id="caption-card-image-frame"
             className="relative mx-auto flex min-h-[112px] w-full max-w-3xl flex-1 overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--card-surface)]"
@@ -189,6 +198,7 @@ export function SwipeVoteCard({
                 isContentVisible ? "opacity-100" : "opacity-0"
               }`}
               onLoad={() => {
+                setFailedImageSrc(null);
                 setLoadedImageSrc(displaySrc);
               }}
               onError={handleImageError}
