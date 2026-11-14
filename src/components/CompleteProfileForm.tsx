@@ -60,7 +60,7 @@ export function CompleteProfileForm({
               Welcome
             </p>
             <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">
-              <span className="bg-gradient-to-r from-[#587b6d] via-[#7fa894] to-[#b58b4b] bg-clip-text text-transparent animate-text-shimmer">
+              <span className="text-[var(--foreground)]">
                 Tell us who you are
               </span>
             </h1>

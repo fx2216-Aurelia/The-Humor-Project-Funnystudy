@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   color-scheme: light;
   --background: #fdfbf7;
@@ -8,9 +10,10 @@
   --soft: #756a63;
   --accent: #9cc9b5;
   --accent-strong: #527967;
-  --accent-contrast: #243b31;
+  --accent-contrast: #14261e;
+  --accent-hover-contrast: #ffffff;
   --progress-track: #d9eee4;
-  --progress-fill: #a9d8c2;
+  --progress-fill: #5e8572;
   --accent-gold: #b58b4b;
   --accent-gold-soft: #f5e8c7;
   --page-background:
@@ -60,6 +63,7 @@
   --accent: #789887;
   --accent-strong: #a4bcae;
   --accent-contrast: #10251b;
+  --accent-hover-contrast: #10251b;
   --progress-track: rgba(169, 197, 176, 0.16);
   --progress-fill: #91bca5;
   --accent-gold: #dfc28b;
@@ -119,6 +123,38 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   transition: background 200ms ease, color 200ms ease;
+}
+
+.global-theme-content {
+  height: 100svh;
+}
+
+#global-theme-fallback {
+  display: flex;
+  height: 5rem;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 1rem;
+}
+
+body:has(.global-theme-content #account-menu-root, .global-theme-content #theme-menu-root) #global-theme-fallback {
+  display: none;
+}
+
+body:not(:has(.global-theme-content #account-menu-root, .global-theme-content #theme-menu-root)) .global-theme-content {
+  height: calc(100svh - 5rem);
+}
+
+body:not(:has(.global-theme-content #account-menu-root, .global-theme-content #theme-menu-root)) .global-theme-content > :first-child {
+  min-height: 0;
+  max-height: 100%;
+}
+
+/* Match the foreground wherever the shared accent hover background is used. */
+@media (hover: hover) {
+  .hover\:bg-\[var\(--accent-strong\)\]:hover {
+    color: var(--accent-hover-contrast);
+  }
 }
 
 .glass-panel {

@@ -218,10 +218,10 @@ function StudiesHeader() {
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Studies</h1>
         <RainbowClouds />
       </div>
-      <div className="max-w-2xl space-y-3 rounded-2xl border border-[#eee8df] bg-[#fffefa]/85 px-4 py-4 shadow-[0_6px_20px_-14px_rgba(104,91,76,0.12)] sm:px-5 sm:py-5">
+      <div className="max-w-2xl space-y-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-surface)] px-4 py-4 shadow-[0_6px_20px_-14px_rgba(104,91,76,0.12)] sm:px-5 sm:py-5">
         <p className="text-sm leading-6 text-[var(--muted)] sm:text-base">
           Welcome to our study hub. We believe in{" "}
-          <span className="font-semibold text-[#527967]">
+          <span className="font-semibold text-[var(--foreground)]">
             Engineering for Humanity
           </span>
           —using technology to create meaningful, human-centered experiences.
@@ -232,15 +232,15 @@ function StudiesHeader() {
           </h2>
           <ol className="mt-2 grid gap-1.5 text-sm leading-5 text-[var(--muted)] sm:grid-cols-3 sm:gap-3">
             <li className="flex gap-2">
-              <span className="font-semibold text-[#527967]">1.</span>
+              <span className="font-semibold text-[var(--foreground)]">1.</span>
               <span>Browse your active studies below.</span>
             </li>
             <li className="flex gap-2">
-              <span className="font-semibold text-[#527967]">2.</span>
+              <span className="font-semibold text-[var(--foreground)]">2.</span>
               <span>Share your thoughts and feelings.</span>
             </li>
             <li className="flex gap-2">
-              <span className="font-semibold text-[#527967]">3.</span>
+              <span className="font-semibold text-[var(--foreground)]">3.</span>
               <span>Your contributions help us build tools that care.</span>
             </li>
           </ol>
@@ -262,10 +262,10 @@ function RainbowClouds() {
       <path d="M32 47a24 24 0 0 1 48 0" stroke="#F2C36E" strokeWidth="7" strokeLinecap="round" />
       <path d="M39 47a17 17 0 0 1 34 0" stroke="#A8CDB5" strokeWidth="7" strokeLinecap="round" />
       <path d="M46 47a10 10 0 0 1 20 0" stroke="#A9CDE2" strokeWidth="7" strokeLinecap="round" />
-      <path d="M24 45c-1-5-5-8-10-8-6 0-10 4-10 9 0 5 4 8 10 8h13c4 0 7-3 7-7 0-4-3-7-7-7-1 0-2 0-3 1Z" fill="#FFFDF8" stroke="#E9E5DD" strokeWidth="1.5" />
-      <path d="M88 45c1-5 5-8 10-8 6 0 10 4 10 9 0 5-4 8-10 8H85c-4 0-7-3-7-7 0-4 3-7 7-7 1 0 2 0 3 1Z" fill="#FFFDF8" stroke="#E9E5DD" strokeWidth="1.5" />
-      <circle cx="19" cy="47" r="1" fill="#8A756B" />
-      <circle cx="97" cy="47" r="1" fill="#8A756B" />
+      <path d="M24 45c-1-5-5-8-10-8-6 0-10 4-10 9 0 5 4 8 10 8h13c4 0 7-3 7-7 0-4-3-7-7-7-1 0-2 0-3 1Z" className="fill-[#fffdf8] stroke-[#a99c91] dark:fill-[#445c4c] dark:stroke-[#c1d9c8]" strokeWidth="1.5" />
+      <path d="M88 45c1-5 5-8 10-8 6 0 10 4 10 9 0 5-4 8-10 8H85c-4 0-7-3-7-7 0-4 3-7 7-7 1 0 2 0 3 1Z" className="fill-[#fffdf8] stroke-[#a99c91] dark:fill-[#445c4c] dark:stroke-[#c1d9c8]" strokeWidth="1.5" />
+      <circle cx="19" cy="47" r="1" className="fill-[#6f5a50] dark:fill-[#f3f5e9]" />
+      <circle cx="97" cy="47" r="1" className="fill-[#6f5a50] dark:fill-[#f3f5e9]" />
     </svg>
   );
 }
@@ -367,7 +367,7 @@ function CompleteProfileForm({
               Welcome
             </p>
             <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">
-              <span className="bg-gradient-to-r from-[#587b6d] via-[#7fa894] to-[#b58b4b] bg-clip-text text-transparent animate-text-shimmer">
+              <span className="text-[var(--foreground)]">
                 Tell us who you are
               </span>
             </h1>

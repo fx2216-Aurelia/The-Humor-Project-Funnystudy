@@ -57,32 +57,32 @@ const STUDY_RATING_OPTIONS = [
     emoji: "🥱",
     label: "Boring",
     value: "not funny at all",
-    color: "border-sky-100 bg-sky-50 text-[#405661] hover:bg-sky-100",
-    selectedColor: "border-sky-300 bg-sky-100 text-[#29495b] ring-1.5 ring-sky-200",
+    color: "border-sky-100 bg-sky-50 text-[#405661] enabled:hover:bg-sky-100 dark:border-sky-400/40 dark:bg-sky-950 dark:text-sky-100 dark:enabled:hover:bg-sky-900",
+    selectedColor: "border-sky-300 bg-sky-100 text-[#29495b] ring-1.5 ring-sky-200 dark:border-sky-200 dark:bg-sky-800 dark:text-white dark:ring-sky-200",
   },
   {
     score: 2,
     emoji: "😐",
     label: "Neutral",
     value: "meh",
-    color: "border-amber-100 bg-amber-50 text-[#62563e] hover:bg-amber-100",
-    selectedColor: "border-amber-300 bg-amber-100 text-[#59451f] ring-1.5 ring-amber-200",
+    color: "border-amber-100 bg-amber-50 text-[#62563e] enabled:hover:bg-amber-100 dark:border-amber-400/40 dark:bg-amber-950 dark:text-amber-100 dark:enabled:hover:bg-amber-900",
+    selectedColor: "border-amber-300 bg-amber-100 text-[#59451f] ring-1.5 ring-amber-200 dark:border-amber-200 dark:bg-amber-800 dark:text-white dark:ring-amber-200",
   },
   {
     score: 3,
     emoji: "😄",
     label: "Funny",
     value: "funny",
-    color: "border-emerald-100 bg-emerald-50 text-[#3e594a] hover:bg-emerald-100",
-    selectedColor: "border-emerald-300 bg-emerald-100 text-[#2e5540] ring-1.5 ring-emerald-200",
+    color: "border-emerald-100 bg-emerald-50 text-[#3e594a] enabled:hover:bg-emerald-100 dark:border-emerald-400/40 dark:bg-emerald-950 dark:text-emerald-100 dark:enabled:hover:bg-emerald-900",
+    selectedColor: "border-emerald-300 bg-emerald-100 text-[#2e5540] ring-1.5 ring-emerald-200 dark:border-emerald-200 dark:bg-emerald-800 dark:text-white dark:ring-emerald-200",
   },
   {
     score: 4,
     emoji: "🤣",
     label: "Hilarious",
     value: "very funny",
-    color: "border-pink-100 bg-pink-50 text-[#63474d] hover:bg-pink-100",
-    selectedColor: "border-pink-300 bg-pink-100 text-[#633843] ring-1.5 ring-pink-200",
+    color: "border-pink-100 bg-pink-50 text-[#63474d] enabled:hover:bg-pink-100 dark:border-pink-400/40 dark:bg-pink-950 dark:text-pink-100 dark:enabled:hover:bg-pink-900",
+    selectedColor: "border-pink-300 bg-pink-100 text-[#633843] ring-1.5 ring-pink-200 dark:border-pink-200 dark:bg-pink-800 dark:text-white dark:ring-pink-200",
   },
 ] as const satisfies readonly {
   score: number;
@@ -1586,7 +1586,7 @@ export function CaptionVoteFlow({
               onClick={() => navigateToRelativeCaption(-1, "button")}
               aria-label="Previous caption"
               disabled={participationPending}
-              className="flex h-9 w-9 shrink-0 self-center items-center justify-center rounded-full border border-[var(--panel-border)] bg-[var(--vote-panel-surface)] text-lg text-[var(--foreground)] shadow-[0_3px_12px_rgba(87,75,64,0.06)] hover:-translate-x-0.5 hover:border-[var(--accent-strong)] disabled:opacity-40 sm:h-12 sm:w-auto sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm sm:font-semibold"
+              className="flex h-9 w-9 shrink-0 self-center items-center justify-center rounded-full border border-[var(--panel-border)] bg-[var(--vote-panel-surface)] text-lg text-[var(--foreground)] shadow-[0_3px_12px_rgba(87,75,64,0.06)] enabled:hover:-translate-x-0.5 enabled:hover:border-[var(--accent-strong)] disabled:cursor-not-allowed disabled:border-dashed sm:h-12 sm:w-auto sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm sm:font-semibold"
             >
               <span aria-hidden>←</span>
               <span className="hidden sm:inline">Previous</span>
@@ -1645,7 +1645,7 @@ function CaptionPrompt({ content }: { content: string | null }) {
       id="caption-card-caption"
       className="mt-1 mb-2 max-h-[18svh] w-full max-w-3xl shrink-0 overflow-y-auto overscroll-contain px-3 text-center sm:mt-2 sm:mb-4 sm:max-h-[20svh] sm:px-5"
     >
-      <p className="whitespace-pre-wrap break-words font-sans text-base font-medium leading-relaxed text-stone-800 sm:text-lg">
+      <p className="whitespace-pre-wrap break-words font-sans text-base font-medium leading-relaxed text-[var(--foreground)] sm:text-lg">
         {content?.trim() || "No caption text"}
       </p>
     </div>
@@ -1688,7 +1688,7 @@ function StudyStartPage({ onStart, pending, hasStarted, hasCompleted }: {
             responses and see your humor stats.
           </p>
           <button type="button" onClick={onStart} disabled={pending}
-            className="mt-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-base font-semibold text-[var(--accent-contrast)] disabled:cursor-wait disabled:opacity-60">
+            className="mt-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-base font-semibold text-[var(--accent-contrast)] disabled:cursor-wait">
             {pending ? "Starting…" : hasCompleted ? "Edit previous responses" : hasStarted ? "Continue Study" : "Start Study"}
           </button>
         </div>
@@ -1713,7 +1713,7 @@ function StudyEndPage({ pendingCount, onEnd, ending }: {
           <p role="status" className="mt-4 text-sm text-[var(--soft)]">Saving your last vote…</p>
         ) : null}
         <button type="button" onClick={onEnd} disabled={ending || pendingCount > 0}
-          className="mt-6 w-full rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--accent-contrast)] disabled:cursor-wait disabled:opacity-60">
+          className="mt-6 w-full rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--accent-contrast)] disabled:cursor-wait">
           {ending ? "Submitting…" : "Finish / Submit Study"}
         </button>
       </div>
@@ -1811,7 +1811,7 @@ function StudyProgressIndicator({
                 className={`absolute left-0 top-1/2 z-10 grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full transition-all duration-500 ${
                   reached
                     ? "scale-[1.2] text-[#fbbf24] drop-shadow-[0_0_6px_rgba(245,158,11,0.75)]"
-                    : "scale-100 text-[#d1d5db]"
+                    : "scale-100 text-[#767b78] dark:text-[#a8b8ad]"
                 }`}
                 style={{ left: `${(milestone / total) * 100}%` }}
               >
@@ -1819,7 +1819,7 @@ function StudyProgressIndicator({
                   <path
                     d="m12 2.8 2.8 5.7 6.3.9-4.55 4.43 1.08 6.27L12 17.14l-5.63 2.96 1.08-6.27L2.9 9.4l6.3-.9L12 2.8Z"
                     fill="currentColor"
-                    stroke={reached ? "#f59e0b" : "#9ca3af"}
+                    stroke={reached ? "#b97706" : "currentColor"}
                     strokeWidth="1.1"
                     strokeLinejoin="round"
                   />
@@ -1927,10 +1927,10 @@ function RatingScale({
               onClick={() => onSelect(option.value)}
               disabled={pending}
               aria-pressed={selected}
-              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-2 text-[11px] font-semibold transition-all duration-200 disabled:cursor-wait disabled:opacity-70 sm:px-3 sm:text-sm sm:py-2.5 ${
+              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-2 text-[11px] font-semibold transition-all duration-200 disabled:cursor-wait sm:px-3 sm:text-sm sm:py-2.5 ${
                 selected
                   ? `${option.selectedColor} scale-[1.02]`
-                  : `${option.color} hover:-translate-y-0.5`
+                  : `${option.color} enabled:hover:-translate-y-0.5`
               }`}
             >
               <span className="text-xl leading-none" aria-hidden>{option.emoji}</span>

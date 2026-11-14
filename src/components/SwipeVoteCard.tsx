@@ -159,7 +159,7 @@ export function SwipeVoteCard({
     >
       <div
         id="caption-card-stack"
-        className="flex h-full min-h-[144px] w-full flex-col items-center overflow-hidden rounded-3xl border border-[#ece8df] bg-[#fffefa] p-3 shadow-[0_8px_26px_-8px_rgba(104,91,76,0.08)] sm:p-5"
+        className="flex h-full min-h-[144px] w-full flex-col items-center overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--card-surface)] p-3 shadow-[0_8px_26px_-8px_rgba(104,91,76,0.08)] sm:p-5"
       >
         {displaySrc ? (
           <div

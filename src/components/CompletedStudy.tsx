@@ -98,7 +98,7 @@ export function CompletedStudy({
             </p>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-[var(--foreground)] sm:text-4xl">
               Your humor,{" "}
-              <span className="bg-gradient-to-r from-[#4a6b5d] to-[#b58b4b] bg-clip-text text-transparent">
+              <span className="text-[var(--foreground)]">
                 recapped.
               </span>
             </h1>
@@ -171,7 +171,7 @@ export function CompletedStudy({
                         className={`relative overflow-hidden rounded-2xl border p-3 transition ${
                           isUnlocked
                             ? `border-amber-300/90 bg-gradient-to-br ${persona.accent} shadow-[0_8px_24px_rgba(181,139,75,0.12)] ring-1 ring-amber-200/70`
-                            : "border-stone-200/70 bg-stone-50/50 text-stone-500 opacity-70 grayscale-[0.55] dark:border-stone-700/70 dark:bg-stone-900/20"
+                            : "border-stone-200/70 bg-stone-50/50 text-[var(--muted)] grayscale-[0.55] dark:border-stone-700/70 dark:bg-stone-900/20"
                         }`}
                       >
                         <div className="flex items-start gap-3">
@@ -279,7 +279,7 @@ export function CompletedStudy({
               Edit responses
             </Link>
           ) : null}
-          <Link href="/" className="inline-flex w-full justify-center rounded-full border border-rose-100 bg-[#fff5f7] px-5 py-2.5 text-sm font-semibold tracking-wide text-[#514347] transition-all duration-200 hover:bg-[#ffedf1]">
+          <Link href="/" className="inline-flex w-full justify-center rounded-full border border-rose-100 bg-[#fff5f7] px-5 py-2.5 text-sm font-semibold tracking-wide text-[#514347] transition-all duration-200 hover:bg-[#ffedf1] dark:border-rose-300/30 dark:bg-rose-950/40 dark:text-rose-100 dark:hover:bg-rose-900/50">
             Back to studies
           </Link>
         </div>
@@ -308,7 +308,7 @@ function StatCard({
   className?: string;
 }) {
   return (
-    <article className={`rounded-2xl border border-rose-100/80 bg-[#fff5f7] p-3 shadow-[0_4px_16px_-10px_rgba(124,76,88,0.16)] sm:p-4 ${className}`}>
+    <article className={`rounded-2xl border border-rose-100/80 bg-[#fff5f7] p-3 shadow-[0_4px_16px_-10px_rgba(124,76,88,0.16)] dark:border-rose-300/25 dark:bg-rose-950/30 sm:p-4 ${className}`}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[var(--soft)]">{label}</p>
         <span aria-hidden className="text-lg">{icon}</span>

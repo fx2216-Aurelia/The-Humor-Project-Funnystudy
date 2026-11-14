@@ -3,15 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { UserCircleIcon, XMarkIcon } from "@heroicons/react/24/solid";
 
-import { THEME_OPTIONS } from "./ThemeSelector";
+import { ThemeOptions } from "./ThemeSelector";
 import { useTheme } from "./ThemeProvider";
 
-export function ThemeMenu() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+export function ThemeMenu({ fallback = false }: { fallback?: boolean }) {
+  const { theme, resolvedTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const buttonId = "theme-menu-button";
-  const panelId = "theme-menu-panel";
+  const buttonId = fallback ? "fallback-theme-menu-button" : "theme-menu-button";
+  const panelId = fallback ? "fallback-theme-menu-panel" : "theme-menu-panel";
 
   useEffect(() => {
     const onClickAway = (event: MouseEvent) => {
@@ -43,28 +43,29 @@ export function ThemeMenu() {
 
   return (
     <div
-      id="theme-menu-root"
+      id={fallback ? "fallback-theme-menu-root" : "theme-menu-root"}
       ref={menuRef}
-      className="fixed bottom-5 right-4 z-50 sm:bottom-6 sm:right-6"
+      className={fallback ? "relative z-50" : "fixed bottom-5 right-4 z-50 sm:bottom-6 sm:right-6"}
     >
       <button
         id={buttonId}
         type="button"
+        aria-label={open ? "Close theme menu" : "Open theme menu"}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_4px_14px_rgba(88,123,109,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--accent-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)]"
+        className={`flex h-12 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_4px_14px_rgba(88,123,109,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--accent-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)] ${fallback ? "gap-2 px-4 text-sm font-semibold" : "h-14 w-14 flex-col"}`}
         onClick={() => setOpen((prev) => !prev)}
       >
-        {open ? <XMarkIcon className="h-7 w-7" aria-hidden /> : <UserCircleIcon className="h-7 w-7" aria-hidden />}
-        <span className="sr-only">Theme and profile</span>
+        {open ? <XMarkIcon className="h-6 w-6" aria-hidden /> : <UserCircleIcon className="h-6 w-6" aria-hidden />}
+        <span className={fallback ? "" : "text-[9px] font-bold leading-none"}>Theme</span>
       </button>
 
       {open ? (
         <div
           id={panelId}
-          role="menu"
-          aria-labelledby={buttonId}
-          className="interaction-menu absolute bottom-16 right-0 min-w-[240px] rounded-2xl border border-[var(--menu-border)] bg-[var(--menu-surface)] p-4 text-[var(--foreground)] shadow-2xl backdrop-blur-lg"
+          role="region"
+          aria-label="Theme"
+          className="interaction-menu absolute bottom-16 right-0 max-h-[calc(100svh-7rem)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--menu-border)] bg-[var(--menu-surface)] p-4 text-[var(--foreground)] shadow-2xl backdrop-blur-lg"
         >
           <div
             id="theme-menu-header"
@@ -77,32 +78,7 @@ export function ThemeMenu() {
               {statusLabel}
             </span>
           </div>
-          <div id="theme-menu-options" className="mt-4 flex items-center gap-3">
-            {THEME_OPTIONS.map((option) => {
-              const selected = theme === option.id;
-              const accessibleLabel =
-                theme === "system" && option.id === "system"
-                  ? `${option.label} (auto ${resolvedTheme})`
-                  : option.label;
-
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  aria-label={accessibleLabel}
-                  aria-pressed={selected}
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl border text-[var(--foreground)] transition hover:-translate-y-0.5 ${
-                    selected
-                      ? "border-[var(--accent-strong)] bg-[var(--surface-muted)] shadow-[0_8px_24px_-16px_rgba(88,123,109,0.28)]"
-                      : "border-[var(--panel-border)] bg-[var(--surface-muted)]"
-                  }`}
-                  onClick={() => setTheme(option.id)}
-                >
-                  {option.icon}
-                </button>
-              );
-            })}
-          </div>
+          <div className="mt-4"><ThemeOptions id="theme-menu-options" /></div>
         </div>
       ) : null}
     </div>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Cog6ToothIcon,
+  CheckIcon,
   ComputerDesktopIcon,
   MoonIcon,
   SunIcon,
@@ -59,24 +60,25 @@ export function AccountMenu({
       <button
         id={buttonId}
         type="button"
-        aria-label={open ? "Close menu" : "Open menu"}
+        aria-label={open ? "Close account and theme menu" : "Open account and theme menu"}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_4px_14px_rgba(88,123,109,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--accent-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)]"
+        className="flex h-12 w-12 flex-col items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_4px_14px_rgba(88,123,109,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--accent-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)]"
         onClick={() => setOpen((prev) => !prev)}
       >
         {open ? (
-          <XMarkIcon className="h-6 w-6" aria-hidden />
+          <XMarkIcon className="h-5 w-5" aria-hidden />
         ) : (
-          <UserCircleIcon className="h-7 w-7" aria-hidden />
+          <UserCircleIcon className="h-5 w-5" aria-hidden />
         )}
+        <span className="text-[9px] font-bold leading-none">Theme</span>
       </button>
 
       {open ? (
         <div
           id={panelId}
-          role="menu"
-          aria-labelledby={buttonId}
+          role="region"
+          aria-label="Account and theme"
           className="interaction-menu absolute bottom-16 right-0 max-h-[calc(100svh-7rem)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--menu-border)] bg-[var(--menu-surface)] p-4 text-[var(--foreground)] shadow-2xl backdrop-blur-lg"
         >
           <div id="account-menu-meta" className="space-y-1">
@@ -92,44 +94,29 @@ export function AccountMenu({
             <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--soft)]">
               Theme
             </p>
-            <div id="account-menu-theme-options" className="flex items-center gap-3">
+            <div id="account-menu-theme-options" role="group" aria-label="Color theme" className="flex flex-wrap gap-2">
               {[
-                {
-                  id: "system" as const,
-                  label: "System default",
-                  icon: <ComputerDesktopIcon className="h-4 w-4" aria-hidden />,
-                },
-                {
-                  id: "light" as const,
-                  label: "Light mode",
-                  icon: <SunIcon className="h-4 w-4" aria-hidden />,
-                },
-                {
-                  id: "dark" as const,
-                  label: "Dark mode",
-                  icon: <MoonIcon className="h-4 w-4" aria-hidden />,
-                },
+                { id: "system" as const, label: "System", icon: <ComputerDesktopIcon className="h-4 w-4" aria-hidden /> },
+                { id: "light" as const, label: "Light", icon: <SunIcon className="h-4 w-4" aria-hidden /> },
+                { id: "dark" as const, label: "Dark", icon: <MoonIcon className="h-4 w-4" aria-hidden /> },
               ].map((option) => {
                 const selected = theme === option.id;
-                const accessibleLabel =
-                  theme === "system" && option.id === "system"
-                    ? `${option.label} (auto ${resolvedTheme})`
-                    : option.label;
-
                 return (
                   <button
                     key={option.id}
                     type="button"
-                    aria-label={accessibleLabel}
+                    aria-label={selected && option.id === "system" ? `System, currently ${resolvedTheme}` : option.label}
                     aria-pressed={selected}
-                    className={`flex h-11 w-11 items-center justify-center rounded-xl border text-[var(--foreground)] transition hover:-translate-y-0.5 ${
+                    className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-2 text-sm font-semibold transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)] ${
                       selected
-                        ? "border-[var(--accent-strong)] bg-[var(--surface-muted)] shadow-[0_8px_24px_-16px_rgba(88,123,109,0.28)]"
-                        : "border-[var(--panel-border)] bg-[var(--surface-muted)]"
+                        ? "border-[var(--accent-strong)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:bg-[var(--accent-strong)]"
+                        : "border-[var(--input-border)] bg-[var(--card-surface)] text-[var(--foreground)] hover:border-[var(--accent-strong)] hover:bg-[var(--surface-muted)]"
                     }`}
                     onClick={() => setTheme(option.id)}
                   >
                     {option.icon}
+                    <span>{option.label}</span>
+                    {selected ? <CheckIcon className="h-4 w-4 shrink-0" aria-hidden /> : null}
                   </button>
                 );
               })}
@@ -139,7 +126,6 @@ export function AccountMenu({
             <Link
               href="/settings"
               prefetch={false}
-              role="menuitem"
               onClick={() => setOpen(false)}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--panel-border)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)]"
             >
@@ -148,7 +134,6 @@ export function AccountMenu({
             </Link>
             <form action={signOutAction}>
               <SubmitButton
-                role="menuitem"
                 pendingLabel="Signing out…"
                 className="w-full rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-contrast)] shadow-[0_4px_14px_rgba(88,123,109,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--accent-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-strong)]"
               >
@@ -158,7 +143,6 @@ export function AccountMenu({
             <Link
               href="/terms"
               prefetch={false}
-              role="menuitem"
               onClick={() => setOpen(false)}
               className="block rounded-lg px-3 py-2 text-center text-sm text-[var(--muted)] underline underline-offset-4"
             >
